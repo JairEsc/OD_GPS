@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>OD basado en la hora</title>
+    <meta property="og:description" content="Visualizar mobilidad urbana basada en la hora." />
+    <meta property="og:created" content="2025-06-25" />
+    <meta charset='utf-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css' />
+    <script src='https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js'></script>
+    <link rel='stylesheet' href='style.css' />
+  
+</head>
+<body>
+
+
+<div id="map"></div>
+
+<div class="map-overlay top">
+    <div class="map-overlay-inner">
+        <h2>OD basado en la hora</h2>
+        <label id="month" for="slider"></label>
+        <input id="slider" type="range" min="0" max="11" step="1" value="0" />
+    </div>
+    <div class="map-overlay-inner">
+        <div id="legend" class="legend">
+            <div class="bar"></div>
+            <div>Proxy de número de viajes</div>
+        </div>
+    </div>
+</div>
+<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+
+<script src="script.js" charset="utf-8"></script>
+
+</body>
+</html>

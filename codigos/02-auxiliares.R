@@ -1,13 +1,13 @@
 ##Funciones auxiliares
 
-linea_curvada = function(p1, p2, ecc = 0.5,signo=1) {
+linea_curvada = function(p1, p2, ecc = 0.5,signo=1,lenght=20) {
   p1=as.numeric(p1)
   p2=as.numeric(p2)
   centro=(p1 + p2) / 2
   v=p2 - p1 #Vector perpendicular
   v_perp=c(-v[2], v[1])
   punto_control=centro + signo*(v_perp * ecc)
-  t=seq(0, 1, length.out = 100)
+  t=seq(0, 1, length.out = lenght)
   curva_matriz=matrix(0, nrow = length(t), ncol = 2)
   for (i in 1:length(t)) {
     curva_matriz[i, ]=(1-t[i])**2*p1+
@@ -21,27 +21,36 @@ linea_curvada = function(p1, p2, ecc = 0.5,signo=1) {
   #Fines de semana de un mes/3 meses
   #Por hora de cada día
 ##Ejemplo: 2023-06-06 07-08
-filtro_por_fecha=function(con, mes=NULL,trend_week=NULL,horas=NULL,travel_modes=NULL,collect=T){
+filtro_por_fecha=function(con, mes=NA,trend_week=NA,horas=NA,travel_modes=NA,collect=T){
   sub_query=OD_crudo |> 
     dplyr::select(device_id,overlap_origin_lat,overlap_origin_long,
                   overlap_destination_lat,overlap_destination_long,start_timestamp,
                   trip_duration_sec:trip_scaled_ratio)
-  if(!is.null(mes)){
+  if(!is.na(mes)){
     sub_query=sub_query |> 
-      dplyr::filter( lubridate::month(start_timestamp)==mes)  
+      dplyr::filter( lubridate::month(start_timestamp)==mes)
   }
-  if(!is.null(trend_week)){
+  if(!is.na(trend_week)){
     sub_query=sub_query |> 
       dplyr::filter(trend_wknd_week==trend_week)  
   }
-  if(!is.null(horas)){
-    sub_query=sub_query |> 
-      dplyr::filter(lubridate::hour(start_timestamp) %in% horas) 
+  if(length(horas)>1){
+      sub_query=sub_query |> 
+        dplyr::filter(lubridate::hour(start_timestamp)%in%horas) 
+  }else{
+   if(!is.na(horas)){
+     sub_query=sub_query |> 
+       dplyr::filter(lubridate::hour(start_timestamp)==horas) 
+   } 
   }
-  
-  if(!is.null(travel_modes)){
+  if(length(travel_modes)>1){
     sub_query=sub_query |> 
       dplyr::filter(travel_mode %in% travel_modes) 
+  }else{
+    if(!is.na(travel_modes)){
+      sub_query=sub_query |> 
+        dplyr::filter(travel_mode == travel_modes) 
+    }
   }
   if(!collect){
     return(dplyr::show_query(sub_query))
@@ -52,8 +61,8 @@ filtro_por_fecha=function(con, mes=NULL,trend_week=NULL,horas=NULL,travel_modes=
 filtro_por_fecha(collect = F)
 filtro_por_fecha(mes=6,collect = F)
 filtro_por_fecha(mes=6,trend_week = "weekend",collect = F)
-filtro_por_fecha(mes=6,trend_week = "weekend",horas = c(5:9),collect = F)
-filtro_por_fecha(mes=c(6,10),trend_week = "weekend",horas = c(5:9),travel_mode = c("cycling","walking"),collect = F)
+filtro_por_fecha(mes=6,trend_week = "weekend",horas = c(5,9),collect = F)
+filtro_por_fecha(mes=c(10),trend_week = "weekend",horas = c(5,9),travel_mode = c("cycling","walking"),collect = F)
 
 
 OD_generador=function(OD_crudo=NULL,particion){
