@@ -1,4 +1,5 @@
 ##Consulta al grafo completo
+con <- DBI::dbConnect(RSQLite::SQLite(), "outputs/grafos/networks.sqlite")
 edges_municipios_sf=st_read(con,'aristas_municipios')
 nodos_municipios=st_read(con,'nodos_municipios')
 
@@ -7,14 +8,14 @@ grafos_municipal_weekday=list.files("outputs/municipal/",pattern = "12_weekday",
   sort() |> tail(24) |> 
   lapply(read.csv)
 
-grafos_municipal_weekday=grafos_municipal_weekday |> 
-  lapply(\(z){
-    z |>   
-      dplyr::ungroup() |>
-      dplyr::group_by(CVEGEO_origin) |> 
-      dplyr::arrange(dplyr::desc(proxy_uso)) |> 
-      dplyr::slice_head(n=5)
-  })
+# grafos_municipal_weekday=grafos_municipal_weekday |> 
+#   lapply(\(z){
+#     z |>   
+#       dplyr::ungroup() |>
+#       dplyr::group_by(CVEGEO_origin) |> 
+#       dplyr::arrange(dplyr::desc(proxy_uso)) |> 
+#       dplyr::slice_head(n=5)
+#   })
 
 grafos_municipal_weekday |> 
   lapply(\(x){
@@ -29,12 +30,17 @@ grafos_municipal_weekday |>
   }) |> unlist() |> max()->max_log_proxy_uso
 grafos_municipal_weekday |> 
   lapply(\(x){
-    x |> dplyr::pull(proxy_uso) |>log() |>  quantile(0.7)
+    x |> dplyr::pull(proxy_uso) |>log() |>  quantile(0.8)
   }) |> unlist() |> unname() ->umbrales_log_minimos
 aristas_municipal_weekday=1:(grafos_municipal_weekday |> length()) |> 
   lapply(\(i){
     grafos_municipal_weekday[[i]] |> 
       dplyr::filter(log(proxy_uso)>=umbrales_log_minimos[i]) |> 
+      dplyr::ungroup() |>
+      dplyr::group_by(CVEGEO_origin) |> 
+      dplyr::arrange(dplyr::desc(proxy_uso)) |> 
+      dplyr::slice_head(n=5) |> 
+      dplyr::ungroup() |> 
       dplyr::mutate(proxy_uso=log(proxy_uso)) |> 
       dplyr::mutate(proxy_uso=.01+14.9*(proxy_uso-min(umbrales_log_minimos)  )/(max_log_proxy_uso - min(umbrales_log_minimos))) 
   })
@@ -45,13 +51,13 @@ nodos_municipal_weekday=1:(grafos_municipal_weekday |> length()) |>
       dplyr::group_by(CVEGEO_origin)|>
       dplyr::summarise(proxy_uso=sum(proxy_uso,na.rm=T)) |>
       dplyr::mutate(proxy_uso=log(proxy_uso)) |> 
-      dplyr::mutate(proxy_uso=100+2900*(proxy_uso-min(umbrales_log_minimos)  )/(max_log_proxy_uso - min(umbrales_log_minimos)))
+      dplyr::mutate(proxy_uso=100+2900*(proxy_uso-min(umbrales_log_minimos)  )/(max_log_proxy_uso_auto_ciclos - min(umbrales_log_minimos)))
   })
 leafletProxy=leaflet() |> 
   addProviderTiles("CartoDB.DarkMatter")#addTiles()
 
 paleta_nodos=colorNumeric(palette ='turbo',domain = seq(100,3000,0.1) )
-paleta_aristas=colorNumeric(palette ='turbo',domain = seq(0.01,14.9,0.01) )
+paleta_aristas=colorNumeric(palette ='turbo',domain = seq(0.01,14.91,0.01) )
 for(i in 1:24){
   grafo_individual=aristas_municipal_weekday[[i]]
   nodos_individual=nodos_municipal_weekday[[i]]
@@ -65,13 +71,13 @@ for(i in 1:24){
     merge(nodos_individual,by.x='CVEGEO',by.y='CVEGEO_origin')
   print(nodos_individual$proxy_uso |> quantile(c(1:10/10)))
   leafletProxy=leafletProxy |> 
-    addCircles(data=nodos_sub_grafo,radius =~proxy_uso,group = as.character(i),fillColor = ~paleta_nodos((proxy_uso)),
+    addCircles(data=nodos_sub_grafo,radius =~proxy_uso,group = as.character(i-1),fillColor = ~paleta_nodos((proxy_uso)),
                color = ~paleta_nodos((proxy_uso)) ) |> 
-    addPolylines(data=sub_grafo |> st_as_sf(),weight = ~proxy_uso,group = as.character(i),
+    addPolylines(data=sub_grafo |> st_as_sf(),weight = ~proxy_uso,group = as.character(i-1),
                  ,fillColor = ~paleta_aristas((proxy_uso)),
                  color = ~paleta_aristas((proxy_uso)) ) 
 }
 
 leafletProxy=leafletProxy |> 
-  addLayersControl(baseGroups = as.character(1:24))
+  addLayersControl(baseGroups = as.character(0:23))
 leafletProxy

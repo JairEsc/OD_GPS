@@ -31,7 +31,7 @@ edges_municipios_geom=apply(edges_municipios, 1, function(row) {
       st_centroid() |>  
       st_coordinates()
     
-    return(linea_curvada(p1, p2,ecc = 0.1 ))
+    return(linea_curveada(p1, p2,ecc = 0.1 ))
     
   }, simplify = FALSE)
 
@@ -62,14 +62,12 @@ edges_agebs_geom=apply(grafo_maximal, 1, function(row) {
     dplyr::filter(CVEGEO == row[1]) |> 
     st_centroid() |>  
     st_coordinates()
-  
   p2=nodos_agebs |> 
     dplyr::filter(CVEGEO == row[2]) |> 
     st_centroid() |>  
     st_coordinates()
   
-  return(linea_curvada(p1, p2,ecc = 0.1 ))
-  
+  return(linea_curveada(p1, p2,ecc = 0.1 ))
 }, simplify = FALSE)
 
 edges_agebs_geom=st_sfc(edges_agebs_geom, crs = st_crs(agebs))

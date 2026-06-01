@@ -28,4 +28,19 @@ for(mes in meses){
   }
 }
 
+
+######
+OD=filtro_por_fecha(mes=06,
+                    trend_week = trend_weeks[1],travel_modes = 'driving',
+                    horas = NA,collect = F)
+#OD=OD |> dplyr::filter(origin_geoid==destination_geoid & trip_duration_sec>300 & trip_distance_m>500)
+OD=OD |> 
+  dplyr::group_by(device_id) |> 
+  dplyr::summarise(
+    trip_duration_sec=sum(trip_duration_sec,na.rm = T),
+                   trip_distance_m=sum(trip_distance_m,na.rm = T),
+    usos=dplyr::n())
+
+OD=OD_precargado(OD)
+OD |> dplyr::collect()->z
 #3 horas

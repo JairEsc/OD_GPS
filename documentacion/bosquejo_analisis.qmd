@@ -1,0 +1,130 @@
+---
+title: "Análisis de mobilidad"
+author: "JairES"
+format: pdf
+editor: visual
+execute:
+  eval: false
+  freeze: true
+---
+
+## Bosquejo de análisis
+
+1.  Determinar el número de viajes mínimo para decidir si incluir al usuario.
+
+    - El 47.7% de los dispositivos registraron entre 1 y 4 viajes
+
+2.  Identificación de *Hogar* usando los principales orígenes y destinos de cada dispositivo (usuario).
+
+3.  (Opcional) Identificación de Zonas de Actividad (e.g. Trabajo) para cada viaje y usuario.
+
+4.  Cálculo de métricas de usuario y asignación de usuario a AGEB según *Hogar*
+
+    - Distancia recorrida por viaje/día/semana/mes/periodo
+
+5.  Validación de datos a partir de número de usuarios por AGEB vs. Población Total.
+
+6.  En caso de que la validación sea buena, hacer regresión simple para obtener factor de expansión y estimar VKT por AGEB como el promedio ponderado de las métricas de usuario por AGEB.
+
+## Distribución temporal y espacial
+
+Se cuenta con 22 millones de registros anónimos, generados con 1,266,313 dispositivos únicos.
+
+El promedio de número de viajes registrados por dispositivo varía de 1 a 1399 con un promedio de 17. El 47.7% de los dispositivos registraron entre 1 y 4 viajes.\
+- Distribución de número de registros por usuario
+
+```{r}
+#| echo: false
+# source("../../../Reutilizables/Postgres_BUIG/conexion_local.R")
+# OD_crudo=dplyr::tbl(local,"cityflow") |> 
+#   dplyr::filter(lubridate::month(start_timestamp)%in%c(6,10,12))
+OD_crudo |> 
+  dplyr::group_by(device_id) |> 
+  dplyr::summarise(
+    trip_duration_sec_cum=sum(trip_duration_sec,na.rm = T),
+    trip_duration_sec_mean=mean(trip_duration_sec,na.rm = T),
+    trip_distance_m_cum=sum(trip_distance_m,na.rm = T),
+    trip_distance_m_mean=mean(trip_distance_m,na.rm = T),
+    trip_speed_mps=mean(trip_speed_mps,na.rm = T),
+    usos=dplyr::n()) |>
+  dplyr::ungroup() |> 
+  dplyr::arrange(device_id) |> 
+  dplyr::collect()->usuarios_unicos
+usuarios_unicos$usos |> table() |> as.data.frame()->usuarios_unicos_freq
+
+usuarios_unicos_freq=usuarios_unicos_freq |> 
+  dplyr::mutate(Var1=as.numeric(as.character(Var1)) ) |> 
+  merge(usuarios_unicos_freq |> tidyr::expand(Var1=1:1399),by='Var1',all.y=T)
+usuarios_unicos_freq$Freq[usuarios_unicos_freq$Freq |> is.na()]=0
+```
+
+```{r}
+#| echo: false
+barplot(usuarios_unicos_freq$Freq/sum(usuarios_unicos_freq$Freq),names.arg = usuarios_unicos_freq$Var1,xlim = c(1,200),) 
+```
+
+De los datos de 3 meses (Junio, Octubre y Diciembre 2023), se tienen 92 días de cobertura temporal (30, 31, 31 respectivamente).
+
+\- El número de usuarios y número de registros por día.
+
+```{r}
+#| echo: false
+OD_crudo |> 
+  dplyr::mutate(day=lubridate::day(start_timestamp)) |> 
+  dplyr::mutate(mes=lubridate::month(start_timestamp)) |> 
+  dplyr::mutate(day=dplyr::if_else(day<10,stringr::str_c("0", day),stringr::str_c(day) )) |> 
+  dplyr::mutate(mes=dplyr::if_else(mes==6,stringr::str_c("0",  "6"),stringr::str_c(mes)) ) |> 
+  dplyr::mutate(day=stringr::str_c(mes,"-",day)) |> 
+  dplyr::group_by(day,device_id) |> 
+  dplyr::summarise(count=dplyr::n()) |> ##Número de usos por día de cada usuario
+  dplyr::ungroup() |> dplyr::collect()->dia_usuario_conteo
+
+```
+
+```{r}
+#| echo: false
+par(mfrow=c(1,2))
+usuarios_por_dia=dia_usuario_conteo |> 
+  dplyr::arrange(day) |> 
+  dplyr::group_by(day) |> 
+  dplyr::summarise(usuarios_unicos=dplyr::n())
+registros_por_dia=dia_usuario_conteo |> 
+  dplyr::ungroup() |> 
+  dplyr::arrange(day) |> 
+  dplyr::group_by(day) |> 
+  dplyr::summarise(registros=sum(count,na.rm=T))
+
+barplot(usuarios_por_dia$usuarios_unicos |> as.numeric(),names.arg = usuarios_por_dia$day)
+barplot(registros_por_dia$registros |> as.numeric(),names.arg = registros_por_dia$day)
+```
+
+\- La distribución de usuarios únicos por nivel de cobertura temporal (Porcentaje de usuarios por número de días distintos). Solamente 620 usuarios (0.048%) tuvieron un registro para el periodo completo.
+
+```{r}
+#| echo: false
+dia_usuario_conteo |> dplyr::group_by(device_id) |> 
+  dplyr::summarise(
+    numero_de_dias_observado=dplyr::n()
+                   ) ->dias_observados
+dias_observados_table=table(dias_observados$numero_de_dias_observado) |> as.data.frame()
+barplot(dias_observados_table$Freq/sum(dias_observados_table$Freq),names.arg = dias_observados_table$Var1,density = F,xlim = c(1,20))
+```
+
+Nota para Jair y algún otro despistado. La distribución de número de registros por dispositivo y la distribución de número de días distintos con registros no necesariamente coinciden en el evento \$n=1\$. Uno es el número de usuarios que hicieron solamente 1 viaje y otro es el número de usuarios que solamente registraron viajes en un día (pudieron ser varios viajes pero en un mismo día).
+
+## Determinar el número de viajes mínimo para decidir si incluir al usuario.
+
+Conservar dispositivos con al menos $k$ registros nos hace conservar $p$ porcentaje de datos del conjunto inicial.
+
+```{r}
+#| echo: false
+
+
+plot(x = 1:10,y=c(sum(usuarios_unicos_freq$Freq),sum(usuarios_unicos_freq$Freq)-(usuarios_unicos_freq$Freq |> cumsum()))[1:10]/(sum(usuarios_unicos_freq$Freq)/100),ylab = "Porcentaje de datos a conservar",xlab = "Número de viajes mínimos por dispositivo")
+```
+
+### Exploración
+
+De los que solo tienen $k=2$, ¿cuántos son los mismos orígenes en ambos registros?
+
+\

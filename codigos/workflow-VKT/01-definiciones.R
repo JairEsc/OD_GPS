@@ -1,5 +1,9 @@
 ##Definiciones
-OD_crudo=dplyr::tbl(local,"trips_chida")
+#sample_citydata="../../CityData/Citflow/2023-06/cityflow/citydata_hidalgo_state_mx_2023-06_deviceTrips_cityflow_00000.csv.gz" |> readr::read_csv()
+#dbCreateTable(conn = local,name = "cityflow",fields = sample_citydata)
+
+OD_crudo=dplyr::tbl(local,"cityflow")
+
 limite_municipal=dplyr::tbl(local,"limite_municipal")
 
 
