@@ -22,7 +22,7 @@ execute:
 
     - Distancia recorrida por viaje/día/semana/mes/periodo
 
-5.  Validación de datos a partir de número de usuarios por AGEB vs. Población Total.
+5.  Validación de datos a partir de número de usuarios por AGEB vs. Población Total (o Población con Teléfono Móvil)
 
 6.  En caso de que la validación sea buena, hacer regresión simple para obtener factor de expansión y estimar VKT por AGEB como el promedio ponderado de las métricas de usuario por AGEB.
 
@@ -110,7 +110,7 @@ dias_observados_table=table(dias_observados$numero_de_dias_observado) |> as.data
 barplot(dias_observados_table$Freq/sum(dias_observados_table$Freq),names.arg = dias_observados_table$Var1,density = F,xlim = c(1,20))
 ```
 
-Nota para Jair y algún otro despistado. La distribución de número de registros por dispositivo y la distribución de número de días distintos con registros no necesariamente coinciden en el evento \$n=1\$. Uno es el número de usuarios que hicieron solamente 1 viaje y otro es el número de usuarios que solamente registraron viajes en un día (pudieron ser varios viajes pero en un mismo día).
+Nota para Jair y algún otro despistado. La distribución de número de registros por dispositivo y la distribución de número de días distintos con registros no necesariamente coinciden en el evento $\{n=1\}$. Uno es el número de usuarios que hicieron solamente 1 viaje y otro es el número de usuarios que solamente registraron viajes en un día (pudieron ser varios viajes pero en un mismo día).
 
 ## Determinar el número de viajes mínimo para decidir si incluir al usuario.
 
@@ -125,6 +125,39 @@ plot(x = 1:10,y=c(sum(usuarios_unicos_freq$Freq),sum(usuarios_unicos_freq$Freq)-
 
 ### Exploración
 
-De los que solo tienen $k=2$, ¿cuántos son los mismos orígenes en ambos registros?
+Si consideramos dispositivos con al menos 5 viajes registrados:
 
-\
+A manera de ejemplo, se selecciona de manera aleatoria un dispositivo/usuario con al menos 10 viajes y se asignan las coordenadas al AGEB / AGEB rural al que pertenece.
+
+```{r}
+set.seed(0)
+DT::datatable(
+  identificar_AGEB(rutina_deviceID(sample(device_IDs,1))[['datos']] |> dplyr::select(-origin_geoid,-destination_geoid) ) |> 
+    dplyr::select(device_id,origin_geoid,destination_geoid),rownames = F
+)
+```
+
+Tanto orígenes como destinos se combinan para determinar los *lugares de actividad.*
+
+Definimos un umbral mínimo para decidir si el lugar de actividad más común es su hogar (\>25 %).
+
+```{r}
+DT::datatable(
+  identificar_AGEB(rutina_deviceID(sample_ID)[['datos']] |>
+                   dplyr::select(-origin_geoid,-destination_geoid)) |>
+  identificarHogares(use_partition = T)
+)
+```
+
+### Procesamiento ZMP
+
+Se repite la identificación del hogar a nivel AGEB para cada dispositivo (de un total de 63,348). Se obtiene una distribución geográfica a nivel AGEB a partir de la frecuencia de hogares
+
+```{r}
+DT::datatable(
+  identificacion_hogares |> dplyr::filter(!is.na(hogares)) |> 
+    head(100)
+)
+```
+
+Se realiza un análisis de correlación entre esta frecuencia de Hogares vs. distribución poblacional dada por Censo de Población y Vivienda a nivel AGEB. La población de AGEB rurales se estima a través de la diferencia entre población municipal y población de AGEB urbano.\

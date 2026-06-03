@@ -24,15 +24,15 @@ source("codigos/workflow-networks/02-auxiliares.R")
 OD_crudo=dplyr::tbl(local,"cityflow_ZMP")
 device_nivel_de_uso=calcularNivelUso(OD_crudo)
 device_nivel_de_uso |> 
-  dplyr::filter(numero_usos>100)|>
+  dplyr::filter(numero_usos==1)|>
   dplyr::pull(device_id) |> unique()->device_IDs
 
 prop_minima=0.25
 
 # 
 # identificarHogares(sample(device_IDs,1) )
-sample(device_IDs,1)->sample_ID
-identificar_AGEB(rutina_deviceID(sample_ID)[['datos']] |>
-                   dplyr::select(-origin_geoid,-destination_geoid)) |>
-  identificarHogares(use_partition = T)
-verRutina(sample_ID)
+# sample(device_IDs,1)->sample_ID
+# identificar_AGEB(rutina_deviceID(sample_ID)[['datos']] |>
+#                    dplyr::select(-origin_geoid,-destination_geoid)) |>
+#   identificarHogares(use_partition = T)
+# verRutina(sample_ID)

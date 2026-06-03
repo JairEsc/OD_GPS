@@ -2,3 +2,5 @@
 .positai
 .Rhistory
 outputs/*
+inputs/*
+!outputs/VKT/
