@@ -29,7 +29,7 @@ hogares <- sapply(results, function(res) if(res$status == "hogar") res$value els
 indecisos <- sapply(results, function(res) if(res$status == "indeciso") res$id else NA)
 
 identificacion_hogares=cbind(device_IDs,hogares) |> as.data.frame()
-identificacion_hogares |> write.csv("outputs/VKT/identificacion_hogares_NV_2.csv",fileEncoding = "utf-8",row.names = F)
+identificacion_hogares |> write.csv("outputs/VKT/identificacion_hogares_NV_1.csv",fileEncoding = "utf-8",row.names = F)
 
 conteo_hogares=identificacion_hogares |> 
   dplyr::group_by(hogares) |> 
@@ -38,9 +38,10 @@ conteo_hogares=identificacion_hogares |>
   dplyr::filter(!is.na(hogares)) |> 
   dplyr::ungroup() |> 
   merge(agebs |> dplyr::select(CVEGEO,POB1) |> st_drop_geometry(),by.x='hogares',by.y='CVEGEO',all.x=T)
-conteo_hogares|> write.csv("outputs/VKT/conteo_hogares_NV_2.csv",row.names = F,fileEncoding = "utf-8")
+conteo_hogares|> write.csv("outputs/VKT/conteo_hogares_NV_1.csv",row.names = F,fileEncoding = "utf-8")
 
 OD_crudo |> 
+  #dplyr::filter(travel_mode=='driving') |> 
   dplyr::group_by(device_id) |> 
   dplyr::summarise(
     trip_duration_sec_cum=sum(trip_duration_sec,na.rm = T),
@@ -51,7 +52,10 @@ OD_crudo |>
     usos=dplyr::n(),
     proxy_uso_mean=mean(trip_scaled_ratio,na.rm=T)) |>
   dplyr::ungroup() |> dplyr::collect()->device_nivel_de_uso
-device_nivel_de_uso |> write.csv("outputs/VKT/nivel_uso_metricas_device_id_NV_2.csv",fileEncoding = "UTF-8",row.names = F)
+device_nivel_de_uso |> 
+  dplyr::select(device_id,usos,proxy_uso_mean) |> 
+  saveRDS("outputs/VKT/nivel_uso_metricas_device_id.rds")
+device_nivel_de_uso |> write.csv("outputs/VKT/nivel_uso_metricas_driving_device_id.csv",fileEncoding = "UTF-8",row.names = F)
 
 
 
