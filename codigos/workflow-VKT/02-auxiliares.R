@@ -93,8 +93,17 @@ calcularNivelUso=function(OD_crudo){
     dplyr::mutate(mes=dplyr::if_else(mes==6,stringr::str_c("0",  "6"),stringr::str_c(mes)) ) |>
     dplyr::mutate(day=stringr::str_c(mes,"-",day)) |>
     dplyr::group_by(device_id) |>
-    dplyr::summarise(numero_usos=as.integer(dplyr::n()),
-                     dias_registrados=as.integer(dplyr::n_distinct(day)),.groups = "keep"
-                     ) |> dplyr::collect()
+    dplyr::summarise(
+      trip_duration_sec_cum=sum(trip_duration_sec,na.rm = T),
+      trip_duration_sec_mean=mean(trip_duration_sec,na.rm = T),
+      trip_distance_m_cum=sum(trip_distance_m,na.rm = T),
+      trip_distance_m_mean=mean(trip_distance_m,na.rm = T),
+      trip_speed_mps=mean(trip_speed_mps,na.rm = T),
+      usos=dplyr::n(),
+      proxy_uso_mean=mean(trip_scaled_ratio,na.rm=T),
+      numero_usos=as.integer(dplyr::n()),
+      dias_registrados=as.integer(dplyr::n_distinct(day)),.groups = "keep"
+                     ) |> 
+    dplyr::collect()
 }
 

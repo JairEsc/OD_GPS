@@ -21,7 +21,7 @@ source("codigos/workflow-networks/02-auxiliares.R")
 # 
 # 
 # DBI::dbWriteTable(local,"cityflow_ZMP",value = OD_crudo)
-OD_crudo=dplyr::tbl(local,"cityflow_ZMP")
+OD_crudo=dplyr::tbl(local,"cityflow_ZMP")###ZMP son los viajes con un origen en ZMP
 device_nivel_de_uso=calcularNivelUso(OD_crudo)
 device_nivel_de_uso |> 
   dplyr::filter(numero_usos==1)|>
@@ -30,8 +30,10 @@ device_nivel_de_uso |>
 prop_minima=0.25
 
 # 
-# identificarHogares(sample(device_IDs,1) )
+# seed=1000
+# set.seed(seed)
 # sample(device_IDs,1)->sample_ID
+# identificarHogares(sample_ID )
 # identificar_AGEB(rutina_deviceID(sample_ID)[['datos']] |>
 #                    dplyr::select(-origin_geoid,-destination_geoid)) |>
 #   identificarHogares(use_partition = T)

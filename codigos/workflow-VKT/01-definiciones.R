@@ -95,13 +95,13 @@ agebs_rural_repartir_locs=agebs_rural_repartir_locs |>
 agebs_rural_repartir_locs$POB1_locs |> sum()
 agebs_rural_repartir=agebs_rural_repartir |> 
   merge(agebs_rural_repartir_locs,by='CVEGEO')
+# agebs=agebs|>
+#   plyr::rbind.fill(agebs_rural_repartir)
 agebs=agebs|>
-  plyr::rbind.fill(agebs_rural_repartir)
-# agebs=agebs|> 
-#   plyr::rbind.fill(agebs_rural_repartir |> 
-#                      dplyr::select(-POB1) |> 
-#                      dplyr::rename(POB1=POB1_locs)
-#   ) |> st_as_sf()
+  plyr::rbind.fill(agebs_rural_repartir |>
+                     dplyr::select(-POB1) |>
+                     dplyr::rename(POB1=POB1_locs)
+  ) |> st_as_sf()
 #agebs |> st_is_valid() |> all()
 #agebs$CVEGEO |> unique() |> length()##1779
 #agebs|> nrow()##1779
