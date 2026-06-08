@@ -55,5 +55,13 @@ conteo_usuarios_ageb |> dplyr::filter(substr(hogares,1,5)=='13051' ) |>
   dplyr::select(conteo,POB1) |> cor(method='s',use='pairwise.complete.obs')
 
 #
+
+##Nota para Roberto
+##Leer un vectorial con geometría
+limite_municipal=sf::st_read("inputs/cartografia/municipiosjair.shp") #es importante seleccionar el de extensión .shp
+
 library(tmap)
 tmap::qtm(limite_municipal)
+
+
+
