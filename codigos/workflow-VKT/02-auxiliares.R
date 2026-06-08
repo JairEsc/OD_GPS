@@ -69,11 +69,41 @@ identificarHogares=function(ID_device,use_partition=F){
     dplyr::arrange(dplyr::desc(conteo)) |> 
     dplyr::mutate(prop=round(conteo/sum(conteo),3) ) 
 }
+identificarHogaresDetallado=function(ID_device,use_partition=F){
+  lugares_crudos=OD_crudo |> 
+    dplyr::filter(device_id==ID_device) |> 
+    dplyr::collect() |> 
+    dplyr::select(-origin_geoid, -destination_geoid) |>
+    identificar_AGEB()
+  lugares_de_actividad_resumen= lugares_crudos |> 
+    dplyr::group_by(origin_geoid,trend_time) |> 
+    dplyr::arrange(start_timestamp) |> 
+    dplyr::summarise(conteo=dplyr::n()) |> 
+    #  dplyr::slice_head(n=1) |> 
+    dplyr::select(origin_geoid,trend_time,conteo) |> 
+    dplyr::arrange(dplyr::desc(conteo)) |> 
+    dplyr::mutate(lugar='origen')|> 
+    dplyr::rename(geoid=origin_geoid) |> 
+    rbind(lugares_crudos |> 
+            dplyr::group_by(destination_geoid,trend_time) |> 
+            dplyr::arrange(start_timestamp) |> 
+            dplyr::summarise(conteo=dplyr::n()) |> 
+            #   dplyr::slice_head(n=1) |> 
+            dplyr::select(destination_geoid,trend_time,conteo) |> 
+            dplyr::arrange(dplyr::desc(conteo)) |> 
+            dplyr::mutate(lugar='destino')  |> 
+            dplyr::rename(geoid=destination_geoid)) |> 
+    dplyr::relocate(lugar,.after = geoid) |> dplyr::arrange(dplyr::desc(conteo))
+  return(lugares_de_actividad_resumen)
+  
+}
 verRutina=function(ID_device){
   rutina_usuario=rutina_deviceID(ID_device)
-  agebs_intersection=agebs |> merge(identificar_AGEB(rutina_deviceID(ID_device)[['datos']] |>
+  agebs_intersection=agebs |> merge(identificar_AGEB(rutina_usuario[['datos']] |>
                                                        dplyr::select(-origin_geoid,-destination_geoid)) |>
-                                      identificarHogares(use_partition = T),by.x='CVEGEO',by.y='punto_relevante',all.y=T)
+                                      identificarHogares(use_partition = T),by.x='CVEGEO',by.y='punto_relevante',all.y=T) |> 
+    dplyr::filter(!st_is_empty(geometry))
+#  print(agebs_intersection)
   ##Juntar origenes y destinos en una sola con un campo distintivo para colorear
   leaflet() |> 
     addTiles() |> 
@@ -82,7 +112,8 @@ verRutina=function(ID_device){
     addCircleMarkers(data=rutina_usuario[['datos']]|> 
                        st_as_sf(coords=c('overlap_destination_long','overlap_destination_lat'),crs=4326),color='red',clusterOptions = markerClusterOptions(),group = "destinos") |> 
     addLayersControl(overlayGroups = c("origenes","destinos")) |> 
-    addPolygons(data=agebs_intersection,fillOpacity = 0.2)
+     addPolygons(data=agebs_intersection,fillOpacity = 0.2,label=agebs_intersection$CVEGEO) |> 
+    addCircleMarkers(data=pob_localidad_rural |> st_transform(4326) |> st_filter(agebs_intersection))
 }
 
 calcularNivelUso=function(OD_crudo){

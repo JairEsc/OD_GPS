@@ -30,11 +30,12 @@ device_nivel_de_uso |>
 prop_minima=0.25
 
 # 
-# seed=1000
-# set.seed(seed)
-# sample(device_IDs,1)->sample_ID
-# identificarHogares(sample_ID )
-# identificar_AGEB(rutina_deviceID(sample_ID)[['datos']] |>
-#                    dplyr::select(-origin_geoid,-destination_geoid)) |>
-#   identificarHogares(use_partition = T)
-# verRutina(sample_ID)
+seed=100
+set.seed(seed)
+
+sample(device_IDs,1)->sample_ID
+identificarHogares(sample_ID )
+identificar_AGEB(rutina_deviceID(sample_ID)[['datos']] |>
+                   dplyr::select(-origin_geoid,-destination_geoid)) |>
+  identificarHogares(use_partition = T)
+verRutina(sample_ID)

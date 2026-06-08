@@ -28,7 +28,7 @@ hogares_devices |> nrow() |> paste("dispositivos únicos en la ZMP")
 #Proceso
 #Filtramos usuarios con poco uso
 device_nivel_de_uso |> 
-  dplyr::filter(numero_usos>1 & dias_registrados>3) |> 
+  dplyr::filter(usos>10 & dias_registrados>3) |> 
   dplyr::right_join(hogares_devices,by=dplyr::join_by(device_id)) |> 
   dplyr::filter(!is.na(dias_registrados))->seleccion_usuarios
 seleccion_usuarios |> nrow() |> paste("dispositivos únicos seleccionados en la ZMP")
@@ -51,7 +51,9 @@ agebs|> nrow() |> paste(" AGEBs")
 #Ahora sí podemos calcular la correlación entre usuarios y población censal
 conteo_usuarios_ageb |> dplyr::select(conteo,POB1) |> cor(method='s',use='pairwise.complete.obs')
 
+conteo_usuarios_ageb |> dplyr::filter(substr(hogares,1,5)=='13051' ) |> 
+  dplyr::select(conteo,POB1) |> cor(method='s',use='pairwise.complete.obs')
 
 #
 library(tmap)
-#tmap::qtm(limite_municipal)
+tmap::qtm(limite_municipal)
