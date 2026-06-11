@@ -1,0 +1,182 @@
+---
+lang: es
+title: "Correlación por población y nivel de usos"
+author: "Roberto Eduardo Hernández Benítez"
+number-sections: true
+execute: 
+  freeze: true
+format: 
+  html:
+    toc: true                                               # Incluir tabla de contenido
+    toc-depth: 5                                            # Profundidad de niveles en TOC
+    toc-location: left                                      # Ubicación del TOC (izquierda)
+editor: visual
+---
+
+## Análisis de usos respecto a la población por AGEBs
+
+Para este análisis se calcula la correlación entre los datos de población en el estado de Pachuca con una estimación de la posible vivienda de una persona a partir de datos anónimos de una aplicación de viajes.
+
+```{r}
+#| label: Librerias Necesarias
+library(dplyr) #Manejo de datos
+library(ggplot2) #Graficos avanzados
+library(treemapify) #Para treemap
+library(tmap) # Para graficar los mapas de la region
+
+```
+
+## Limpieza de datos
+
+Con CVEGEO y población Censal. Se estima con población rural de localidades
+
+```{r}
+CVE_MUN_ZMP=c("048","051","052","039","022","082","083","069") 
+agebs=read.csv("../outputs/VKT/poblacion_por_ageb.csv") 
+agebs=agebs |> dplyr::mutate(CVE_MUN=substr(CVEGEO,3,5)) |> dplyr::filter( CVE_MUN%in%CVE_MUN_ZMP)
+```
+
+### Metricas por usuario
+
+Con device_id, número de usos, número de días registrados, y distancias recorridas calcularNivelUso(OD_crudo = OD_crudo)-\>device_nivel_de_uso.
+
+::: {.callout-caution appearance="minimal"}
+## Ejecutar con precaución pues es un volumen de datos considerable
+:::
+
+```{r}
+device_nivel_de_uso=read.csv("../outputs/VKT/device_nivel_de_uso.csv") 
+# Lo guardamos en un RDS para fácil acceso
+```
+
+Identificación de Hogares
+
+```{r}
+list.files("../outputs/VKT","identificacion",full.names=T) |> 
+  lapply(read.csv)->hogares_devices
+hogares_devices=do.call(rbind,hogares_devices) |> 
+  dplyr::filter(!is.na(hogares)) |> 
+  dplyr::rename(device_id=device_IDs)
+hogares_devices |> nrow() |> paste("dispositivos únicos en la ZMP")
+```
+
+Filtramos usuarios por número de usos, estos parametros pueden ser ajustados
+
+```{r}
+device_nivel_de_uso |> 
+  dplyr::filter(usos>10 & dias_registrados>3) |> 
+  dplyr::right_join(hogares_devices,by=dplyr::join_by(device_id)) |> 
+  dplyr::filter(!is.na(dias_registrados))->seleccion_usuarios
+seleccion_usuarios |> nrow() |> paste("dispositivos únicos seleccionados en la ZMP")
+```
+
+Contamos número de usuario por AGEB
+
+```{r}
+seleccion_usuarios |> 
+  dplyr::group_by(hogares) |> 
+  dplyr::summarise(conteo=dplyr::n()) |> 
+  merge(agebs,by.x='hogares',by.y='CVEGEO', all.y = T) |> 
+  dplyr::ungroup() |> 
+  dplyr::filter(substr(hogares,3,5)%in%CVE_MUN_ZMP)->conteo_usuarios_ageb
+
+conteo_usuarios_ageb$conteo |> sum(na.rm=T) |> paste("usuarios distribuidos en")
+conteo_usuarios_ageb$hogares |> unique() |> length() |> paste("AGEBS")
+
+```
+
+## Análisis de correlación
+
+Se estudia la correlación entre el nivel de uso del servicio y el tamaño de la población de acuerdo a 3 filtros principales, un análisis global entre los datos sin ningun filtro, organizados por localidad y por municipio.
+
+```{r}
+conteo_usuarios_ageb |> dplyr::select(conteo,POB1) |> cor(method='s',use='pairwise.complete.obs')
+
+```
+
+Correlación filtrado por población \> 0
+
+```{r}
+conteo_usuarios_ageb %>% filter( POB1> 0) |>
+  dplyr::select(conteo,POB1) |> cor(method='s',use='pairwise.complete.obs')
+```
+
+### Agrupamos los datos por localidad (primeros 9 digitos del campo hogares) con substr
+
+```{r}
+conteo_localidad <- conteo_usuarios_ageb %>% dplyr::group_by(prefijo = substr(hogares, 1, 9))|>
+  dplyr::summarise(POB1=sum(POB1, na.rm = TRUE),conteo=sum(conteo, na.rm = TRUE))
+
+conteo_localidad |> dplyr::select(conteo,POB1) |> cor(method='s',use='pairwise.complete.obs')
+```
+
+### Agrupamos los datos por municipios (primeros 5 digitos del campo hogares)
+
+```{r}
+conteo_municipio <- conteo_usuarios_ageb %>% dplyr::group_by(prefijo = substr(hogares, 1, 5))|>
+  dplyr::summarise(POB1=sum(POB1, na.rm = TRUE),conteo=sum(conteo, na.rm = TRUE))
+
+conteo_municipio |> dplyr::select(conteo,POB1) |> cor(method='s',use='pairwise.complete.obs')
+```
+
+Se define una nueva variable use_ratio= conteo/POB1 para ver la proporción de personas que utilizan el servicio respecto a la población total
+
+```{r}
+conteo_municipio<-conteo_municipio %>% mutate(use_ratio = conteo/POB1)
+
+mean(conteo_municipio$use_ratio) |> paste("Tasa de uso media")
+sd(conteo_municipio$use_ratio) |> paste("Desviación estandar")
+```
+
+Hacemos un Treemap de acuerdo al tamaño de la poblacion con la tasa de usos
+
+```{r}
+ggplot(conteo_municipio, aes(area = POB1, fill = use_ratio,label=prefijo)) +
+  geom_treemap() +
+  geom_treemap_text(colour = "white",
+                    place = "centre",
+                    size = 15) + ggtitle("Uso de Aplicación por tamaño de la poblacion en el municipio.")
+
+```
+
+Realizamos un modelo lineal para visualizar el uso de aplicación por tamaño de la población
+
+```{r}
+ggplot(conteo_municipio,aes(x = POB1, y = conteo)) + geom_point() + 
+  geom_smooth(method = "lm") + theme_classic() + ggtitle("Proyección de uso por tamaño de los municipios de la ZMP")
+```
+
+Similarmente podemos aplicar un modelo lineal sobre la población medida por localidades
+
+```{r}
+ggplot(conteo_localidad,aes(x = POB1, y = conteo)) + geom_point() + 
+  geom_smooth(method = "lm")
+
+```
+
+Por ultimo, nos interesa saber cual es la correlación asociada a cada uno de los municipios medido de acuerdo a sus localidades.
+
+```{r}
+# Correlación asociada a cada municipio de acuerdo a sus localidades
+conteo_localidad <- conteo_usuarios_ageb %>% group_by(CVE_MUN) %>%
+  mutate( correlacion = cor(conteo, POB1, method = "s", use = "pairwise.complete.obs"))
+# Extrae la correlacion asociada al municipio con su clave unica para unirlo al mapa
+corrs_municipio <- conteo_localidad %>%  select(CVE_MUN,correlacion)
+
+```
+
+### Carga de archivos geográficos 
+
+Mediante la libreria tmap realizamos la carga de un archivo extensión `.shp`
+
+```{r}
+#Leer un vectorial con geometría
+limite_municipal=sf::st_read("../inputs/cartografia/municipiosjair.shp") #es importante seleccionar el de extensión .shp
+
+#Creacionn del mapa, añadimos la correlación asociada a cada municipio
+mapa_correlaciones <- limite_municipal %>% right_join(corrs_municipio, by="CVE_MUN") %>% 
+  filter(!is.na(correlacion))
+
+tmap::tm_shape(mapa_correlaciones) + tm_polygons(col = "correlacion", midpoint = 0, n=3 )  
+
+```
